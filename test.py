@@ -4,6 +4,7 @@ from transformers import LlamaTokenizer, AutoTokenizer
 from model_factory import create_model, AutoModelForCausalLM
 from config import ShareConfig, add_args
 from prepare_data import prepare_data
+from models.model_utils import Coefficient
 
 
 def compute_ppl(max_length, stride, data, model, device):
@@ -13,6 +14,17 @@ def compute_ppl(max_length, stride, data, model, device):
 
     nlls = []
     prev_end_loc = 0
+    active_records = []
+
+    def collect_active_ratio():
+        ratios = []
+        for module in model.modules():
+            if isinstance(module, Coefficient) and module.last_active_ratio is not None:
+                ratios.append(module.last_active_ratio)
+        if len(ratios) == 0:
+            return None
+        return sum(ratios) / len(ratios)
+
     for begin_loc in tqdm(range(0, seq_len, stride)):
         end_loc = min(begin_loc + max_length, seq_len)
         trg_len = end_loc - prev_end_loc
@@ -25,10 +37,16 @@ def compute_ppl(max_length, stride, data, model, device):
 
             neg_log_likelihood = output.loss
         nlls.append(neg_log_likelihood)
+        active_avg = collect_active_ratio()
+        if active_avg is not None:
+            active_records.append(active_avg)
         prev_end_loc = end_loc
         if end_loc == seq_len:
             break
     ppl = torch.exp(torch.stack(nlls).mean())
+    if len(active_records) > 0:
+        avg_active = sum(active_records) / len(active_records)
+        print(f"[Monitor] Avg active fraction across Coefficient layers: {avg_active * 100:.2f}%")
     return ppl
 
 

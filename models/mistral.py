@@ -3,7 +3,7 @@ from transformers.models.mistral.modeling_mistral import MistralMLP, MistralSdpa
     MistralModel, MistralForCausalLM, apply_rotary_pos_emb, repeat_kv
 from transformers.cache_utils import Cache, DynamicCache, StaticCache
 from transformers.modeling_outputs import BaseModelOutputWithPast
-from model_utils import build_basis_collection, Coefficient
+from .model_utils import build_basis_collection, Coefficient
 from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -16,12 +16,17 @@ class ShareMistralMLP(MistralMLP):
         self.share_gate = share_gate
         self.share_up = share_up
         self.share_down = share_down
+        dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
+        max_rank = getattr(config, "max_basis_rank", None)
         if share_gate:
-            self.gate_proj = Coefficient(self.intermediate_size, config.num_basis_gate)
+            self.gate_proj = Coefficient(self.intermediate_size, config.num_basis_gate,
+                                         dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_up:
-            self.up_proj = Coefficient(self.intermediate_size, config.num_basis_up)
+            self.up_proj = Coefficient(self.intermediate_size, config.num_basis_up,
+                                       dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_down:
-            self.down_proj = Coefficient(self.hidden_size, config.num_basis_down)
+            self.down_proj = Coefficient(self.hidden_size, config.num_basis_down,
+                                         dynamic_threshold=dyn_thresh, max_rank=max_rank)
 
     def forward(self, hidden_state, **kwargs):
         if self.share_gate:
@@ -49,14 +54,20 @@ class ShareMistralSdpaAttention(MistralSdpaAttention):
         self.share_q = share_q
         self.share_v = share_v
         self.share_o = share_o
+        dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
+        max_rank = getattr(config, "max_basis_rank", None)
         if share_q:
-            self.q_proj = Coefficient(self.num_heads * self.head_dim, config.num_basis_q)
+            self.q_proj = Coefficient(self.num_heads * self.head_dim, config.num_basis_q,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_k:
-            self.k_proj = Coefficient(self.num_key_value_heads * self.head_dim, config.num_basis_k)
+            self.k_proj = Coefficient(self.num_key_value_heads * self.head_dim, config.num_basis_k,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_v:
-            self.v_proj = Coefficient(self.num_key_value_heads * self.head_dim, config.num_basis_v)
+            self.v_proj = Coefficient(self.num_key_value_heads * self.head_dim, config.num_basis_v,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_o:
-            self.o_proj = Coefficient(self.hidden_size, config.num_basis_o)
+            self.o_proj = Coefficient(self.hidden_size, config.num_basis_o,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
 
     def forward(
             self,

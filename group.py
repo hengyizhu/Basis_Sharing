@@ -4,7 +4,7 @@ from calib import Calib
 
 
 class Group:
-    def __init__(self, std_model, group_member, name, step, model_type, s, invs):
+    def __init__(self, std_model, group_member, name, step, model_type, s, invs, scaling_diag=None):
         """
         :param std_model: the original model
         :param group_member: the layers which share2 the same parameter
@@ -18,6 +18,7 @@ class Group:
         self.basis = None
         self.coefficient = None
         self.sigma = None
+        self.scaling_diag = scaling_diag
         self._init_basis_coefficient(std_model, s, invs)
 
     def _init_gpt2(self, std_model):
@@ -115,14 +116,18 @@ class Group:
         co = self._get_coefficient_split()
         for i, layer in enumerate(self.member):
             weight = co[layer][self.name][:num_basis, :]
-            tmp_model[layer].get_submodule(self.name).set_weight(weight)
+            target = tmp_model[layer].get_submodule(self.name)
+            target.set_weight(weight)
+            if hasattr(target, "set_scaling_diag"):
+                target.set_scaling_diag(self.scaling_diag)
         return model
 
 
 def change_model(std_model, model, model_type, groups, name, step, num_basis, basis_name, calib_path):
     for group in tqdm(groups):
-        s, inv_s = Calib.get_s_inv_s(group, name, model_type, calib_path)
-        item = Group(std_model, group, name=name, step=step, model_type=model_type, s=s, invs=inv_s)
+        s, inv_s, scaling_diag = Calib.get_s_inv_s(group, name, model_type, calib_path)
+        item = Group(std_model, group, name=name, step=step, model_type=model_type, s=s, invs=inv_s,
+                     scaling_diag=scaling_diag)
         model = item.change_basis(model, num_basis, basis_name)
         model = item.change_coefficient(model, num_basis)
     return model

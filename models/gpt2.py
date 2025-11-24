@@ -5,7 +5,7 @@ import torch
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 from transformers.models.gpt2.modeling_gpt2 import GPT2LMHeadModel, GPT2SdpaAttention, GPT2MLP, GPT2Block, GPT2Model
 from transformers.utils import logging
-from model_utils import build_basis_collection, Basis, Coefficient
+from .model_utils import build_basis_collection, Basis, Coefficient
 
 logger = logging.get_logger(__name__)
 
@@ -15,11 +15,15 @@ class ShareGPT2SdpaAttention(GPT2SdpaAttention):
         super().__init__(config, is_cross_attention, layer_idx)
         self.share_attn = share_attn
         self.share_o = share_o
+        dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
+        max_rank = getattr(config, "max_basis_rank", None)
 
         if share_attn:
-            self.c_attn = Coefficient(3 * self.embed_dim, config.num_basis_attn, bias=True)
+            self.c_attn = Coefficient(3 * self.embed_dim, config.num_basis_attn, bias=True,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_o:
-            self.c_proj = Coefficient(self.embed_dim, config.num_basis_o, bias=True)
+            self.c_proj = Coefficient(self.embed_dim, config.num_basis_o, bias=True,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
 
     def forward(
             self,
@@ -123,10 +127,14 @@ class ShareGPT2MLP(GPT2MLP):
         self.layer_idx = layer_idx
         self.share_up = share_up
         self.share_down = share_down
+        dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
+        max_rank = getattr(config, "max_basis_rank", None)
         if share_up:
-            self.c_fc = Coefficient(intermediate_size, config.num_basis_up, bias=True)
+            self.c_fc = Coefficient(intermediate_size, config.num_basis_up, bias=True,
+                                    dynamic_threshold=dyn_thresh, max_rank=max_rank)
         if share_down:
-            self.c_proj = Coefficient(config.hidden_size, config.num_basis_down, bias=True)
+            self.c_proj = Coefficient(config.hidden_size, config.num_basis_down, bias=True,
+                                      dynamic_threshold=dyn_thresh, max_rank=max_rank)
 
     def forward(self, hidden_states: Optional[Tuple[torch.FloatTensor]], **kwargs) -> torch.FloatTensor:
         if self.share_up:

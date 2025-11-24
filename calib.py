@@ -53,11 +53,14 @@ class Calib:
         for item in group:
             file_name = os.path.join(file_path, "{}.pkl".format(item))
             if os.path.exists(file_name):
-                tmp_data = Calib.load(file_name)
+                raw = Calib.load(file_name)
+                cov, _ = Calib._split_cov_scaling(raw)
+                if cov is None:
+                    raise ValueError(f"{file_name} missing covariance data")
                 if data is None:
-                    data = tmp_data
+                    data = cov
                 else:
-                    data += tmp_data
+                    data += cov
             else:
                 raise FileNotFoundError(
                     "{} not found. You should run build_calibration_dataset first!".format(file_name))
@@ -66,18 +69,11 @@ class Calib:
     @staticmethod
     def get_s_inv_s(group, name, model_type, calib_path=None):
         data = Calib.get_calib_data(group, name, calib_path).double()
-        # The following code is from https://github.com/AIoT-MLSys-Lab/SVD-LLM
-        try:
-            scaling_diag_matrix = torch.linalg.cholesky(data).T
-        except Exception as e:
-            print("Warning: eigen scaling_diag_matrix is not positive!")
-            eigenvalues = torch.linalg.eigvalsh(data)
-            data += (- eigenvalues[0] + 7e-6) * torch.eye(data.shape[0]).to(data.device)
-            scaling_diag_matrix = torch.linalg.cholesky(data).T
-            eigenvalues = None
-            del eigenvalues
+        scaling_diag_matrix, scaling_diag = Calib._compute_scaling_matrix(data)
+        if calib_path is not None:
+            Calib._save_scaling_diag(calib_path, name, group, scaling_diag)
         invs = torch.linalg.inv(scaling_diag_matrix)
-        return scaling_diag_matrix, invs
+        return scaling_diag_matrix, invs, scaling_diag
 
     @staticmethod
     def build_calibration_dataset(model, dataloader, names, model_type, save_path):
@@ -114,7 +110,9 @@ class Calib:
             if not os.path.exists(tmp_save_path):
                 os.makedirs(tmp_save_path)
             for i, hook in enumerate(hooks[name]):
-                data = hook.calib.cpu()
+                cov = hook.calib.cpu()
+                scaling_diag = Calib._compute_scaling_diag(cov)
+                data = {"cov": cov, "scaling_diag": scaling_diag}
                 tmp_name = str(i) + ".pkl"
                 Calib.save(os.path.join(tmp_save_path, tmp_name), data)
                 hook.close()
@@ -154,7 +152,48 @@ class Calib:
             if not os.path.exists(tmp_save_path):
                 os.makedirs(tmp_save_path)
             for i, hook in enumerate(hooks[name]):
-                data = hook.calib.cpu()
+                cov = hook.calib.cpu()
+                scaling_diag = Calib._compute_scaling_diag(cov)
+                data = {"cov": cov, "scaling_diag": scaling_diag}
                 tmp_name = str(i) + ".pkl"
                 Calib.save(os.path.join(tmp_save_path, tmp_name), data)
                 hook.close()
+
+    @staticmethod
+    def _compute_scaling_matrix(data):
+        # The following code is from https://github.com/AIoT-MLSys-Lab/SVD-LLM
+        try:
+            scaling_diag_matrix = torch.linalg.cholesky(data).T
+        except Exception as e:
+            print("Warning: eigen scaling_diag_matrix is not positive!")
+            eigenvalues = torch.linalg.eigvalsh(data)
+            data = data + (- eigenvalues[0] + 7e-6) * torch.eye(data.shape[0]).to(data.device)
+            scaling_diag_matrix = torch.linalg.cholesky(data).T
+            eigenvalues = None
+            del eigenvalues
+        scaling_diag = torch.diag(scaling_diag_matrix).float()
+        return scaling_diag_matrix, scaling_diag
+
+    @staticmethod
+    def _compute_scaling_diag(data):
+        _, scaling_diag = Calib._compute_scaling_matrix(data.double())
+        return scaling_diag
+
+    @staticmethod
+    def _split_cov_scaling(raw):
+        if isinstance(raw, dict):
+            cov = raw.get("cov", None)
+            scaling_diag = raw.get("scaling_diag", None)
+        else:
+            cov = raw
+            scaling_diag = None
+        return cov, scaling_diag
+
+    @staticmethod
+    def _save_scaling_diag(base_path, name, group, scaling_diag):
+        dir_path = os.path.join(base_path, name, "scaling")
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        group_name = "_".join([str(i) for i in group])
+        file_path = os.path.join(dir_path, f"{group_name}.pkl")
+        Calib.save(file_path, scaling_diag.cpu())

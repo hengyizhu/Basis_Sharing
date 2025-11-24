@@ -30,6 +30,18 @@ def add_args():
         type=str,
         default=None,
     )
+    paser.add_argument(
+        "--dynamic_rank_threshold",
+        help="threshold for dynamic basis activation; None disables",
+        type=float,
+        default=None,
+    )
+    paser.add_argument(
+        "--max_basis_rank",
+        help="optional cap on number of basis vectors to keep active at runtime",
+        type=int,
+        default=None,
+    )
     args, unknown = paser.parse_known_args()
     return args
 

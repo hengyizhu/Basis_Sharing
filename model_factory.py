@@ -18,24 +18,34 @@ from models.opt import ShareOPTForCausalLM
 from models.mistral import ShareMistralForCausalLM
 
 
+def _inject_dynamic_config(model_config, runtime_config):
+    if hasattr(runtime_config, "dynamic_rank_threshold"):
+        setattr(model_config, "dynamic_rank_threshold", getattr(runtime_config, "dynamic_rank_threshold", None))
+    if hasattr(runtime_config, "max_basis_rank"):
+        setattr(model_config, "max_basis_rank", getattr(runtime_config, "max_basis_rank", None))
+
+
 def do_update_model(config, model, dataset, tokenizer, data_collator):
     if os.path.exists(config.updated_model_path):
         print("Start load model!")
         print("Load: {}".format(config.updated_model_path))
+        load_config = AutoConfig.from_pretrained(config.updated_model_path)
+        _inject_dynamic_config(load_config, config)
         if config.model_type == "gpt2":
-            model = ShareGPT2LMHeadModel.from_pretrained(config.updated_model_path, device_map='auto')
+            model = ShareGPT2LMHeadModel.from_pretrained(config.updated_model_path, device_map='auto', config=load_config)
         elif config.model_type == "llama2":
-            model = ShareLlamaForCausalLM.from_pretrained(config.updated_model_path, device_map='auto')
+            model = ShareLlamaForCausalLM.from_pretrained(config.updated_model_path, device_map='auto', config=load_config)
         elif config.model_type == "opt":
-            model = ShareOPTForCausalLM.from_pretrained(config.updated_model_path, device_map='auto')
+            model = ShareOPTForCausalLM.from_pretrained(config.updated_model_path, device_map='auto', config=load_config)
         elif config.model_type == "mistral":
-            model = ShareMistralForCausalLM.from_pretrained(config.updated_model_path, device_map='auto')
+            model = ShareMistralForCausalLM.from_pretrained(config.updated_model_path, device_map='auto', config=load_config)
         else:
             raise ValueError
     else:
         std_model = AutoModelForCausalLM.from_pretrained(config.model_name, device_map="cpu")
         std_model.config.use_cache = False
         model = load_checkpoint_and_dispatch(model, config.untrained_model_path, device_map="auto")
+        _inject_dynamic_config(model.config, config)
 
         # Prepare Dataloader for calibration data
         torch.manual_seed(2023)
@@ -85,18 +95,20 @@ def create_model(config):
         model_path = config.untrained_model_path
         print("Start load model!")
         print("Start load: {}".format(config.untrained_model_path))
+        load_config = AutoConfig.from_pretrained(model_path)
+        _inject_dynamic_config(load_config, config)
         if config.model_type == "gpt2":
-            model = ShareGPT2LMHeadModel.from_pretrained(model_path, device_map='auto', )
+            model = ShareGPT2LMHeadModel.from_pretrained(model_path, device_map='auto', config=load_config)
         elif config.model_type == "llama2":
             if "30b" in config.untrained_model_path:
                 model = ShareLlamaForCausalLM.from_pretrained(model_path, device_map='auto',
-                                                              torch_dtype=torch.float16)
+                                                              torch_dtype=torch.float16, config=load_config)
             else:
-                model = ShareLlamaForCausalLM.from_pretrained(model_path, device_map='cpu')
+                model = ShareLlamaForCausalLM.from_pretrained(model_path, device_map='cpu', config=load_config)
         elif config.model_type == "opt":
-            model = ShareOPTForCausalLM.from_pretrained(model_path, device_map='auto')
+            model = ShareOPTForCausalLM.from_pretrained(model_path, device_map='auto', config=load_config)
         elif config.model_type == "mistral":
-            model = ShareMistralForCausalLM.from_pretrained(model_path, device_map='auto')
+            model = ShareMistralForCausalLM.from_pretrained(model_path, device_map='auto', config=load_config)
         else:
             raise ValueError
 
@@ -109,6 +121,7 @@ def create_model(config):
         print("Start create model!")
         model_config = AutoConfig.from_pretrained(config.model_name)
         model_config.use_cache = False
+        _inject_dynamic_config(model_config, config)
         if config.model_name == "jeffwan/llama-30b-hf":
             std_model = AutoModelForCausalLM.from_pretrained(config.model_name, device_map="auto",
                                                              torch_dtype=torch.float16)
