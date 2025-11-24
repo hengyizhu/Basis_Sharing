@@ -26,10 +26,11 @@ class Basis(nn.Linear):
 
 class Coefficient(nn.Linear):
     def __init__(self, nf, num_basis, bias=False, dynamic_threshold=None, max_rank=None, scaling_diag=None,
-                 log_active=False):
+                 log_active=False, dynamic_energy_threshold=None):
         super().__init__(num_basis, nf, bias=bias)
         self.nf = nf
         self.dynamic_threshold = dynamic_threshold
+        self.dynamic_energy_threshold = dynamic_energy_threshold
         self.max_rank = max_rank
         self.log_active = log_active
         self._last_active_ratio = None
@@ -85,17 +86,35 @@ class Coefficient(nn.Linear):
             x_proc = x_proc[..., : self.max_rank]
             weight = weight[:, : self.max_rank]
 
-        if self.dynamic_threshold is not None:
+        if self.dynamic_threshold is not None or self.dynamic_energy_threshold is not None:
             x_proc = self._apply_scaling(x_proc)
 
         z = F.linear(x_proc, weight, bias)
 
-        if self.dynamic_threshold is not None:
+        mask = None
+        if self.dynamic_energy_threshold is not None:
+            energy = z.pow(2)
+            sorted_energy, indices = torch.sort(energy, dim=-1, descending=True)
+            cumulative = torch.cumsum(sorted_energy, dim=-1)
+            total_energy = cumulative[..., -1:]
+            target = total_energy * self.dynamic_energy_threshold
+            sorted_mask = cumulative <= target
+            # ensure at least one element kept
+            sorted_mask[..., 0] = True
+            recovered_mask = torch.zeros_like(sorted_mask, dtype=torch.bool)
+            recovered_mask.scatter_(-1, indices, sorted_mask)
+            mask = recovered_mask
+            z = z * recovered_mask
+        elif self.dynamic_threshold is not None:
             mask = (z.abs() >= self.dynamic_threshold)
             self._last_active_ratio = mask.float().mean().detach().cpu().item()
             if self.log_active and not self.training:
                 print(f"[Coefficient] active fraction: {self._last_active_ratio:.4f}")
             z = z * mask
+        if mask is not None:
+            self._last_active_ratio = mask.float().mean().detach().cpu().item()
+            if self.log_active and not self.training and self.dynamic_energy_threshold is not None:
+                print(f"[Coefficient] active fraction: {self._last_active_ratio:.4f}")
 
         size_out = x.size()[:-1] + (self.nf,)
         z = z.view(size_out)

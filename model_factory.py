@@ -23,6 +23,8 @@ def _inject_dynamic_config(model_config, runtime_config):
         setattr(model_config, "dynamic_rank_threshold", getattr(runtime_config, "dynamic_rank_threshold", None))
     if hasattr(runtime_config, "max_basis_rank"):
         setattr(model_config, "max_basis_rank", getattr(runtime_config, "max_basis_rank", None))
+    if hasattr(runtime_config, "dynamic_energy_threshold"):
+        setattr(model_config, "dynamic_energy_threshold", getattr(runtime_config, "dynamic_energy_threshold", None))
 
 
 def do_update_model(config, model, dataset, tokenizer, data_collator):

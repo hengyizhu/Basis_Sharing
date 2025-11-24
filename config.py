@@ -42,6 +42,12 @@ def add_args():
         type=int,
         default=None,
     )
+    paser.add_argument(
+        "--dynamic_energy_threshold",
+        help="retain basis energy fraction (e.g., 0.95); enables cumulative energy pruning",
+        type=float,
+        default=None,
+    )
     args, unknown = paser.parse_known_args()
     return args
 

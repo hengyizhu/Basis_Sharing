@@ -17,18 +17,23 @@ class ShareLlamaSdpaAttention(LlamaSdpaAttention):
         super().__init__(config, layer_idx)
         dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
         max_rank = getattr(config, "max_basis_rank", None)
+        energy_thresh = getattr(config, "dynamic_energy_threshold", None)
         self.q_basis = q_basis
         self.q_proj = Coefficient(self.num_heads * self.head_dim, config.num_basis_q,
-                                  dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                  dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                  max_rank=max_rank)
         self.k_basis = k_basis
         self.k_proj = Coefficient(self.num_key_value_heads * self.head_dim, config.num_basis_k,
-                                  dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                  dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                  max_rank=max_rank)
         self.v_basis = v_basis
         self.v_proj = Coefficient(self.num_key_value_heads * self.head_dim, config.num_basis_v,
-                                  dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                  dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                  max_rank=max_rank)
         self.o_basis = o_basis
         self.o_proj = Coefficient(self.hidden_size, config.num_basis_o,
-                                  dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                  dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                  max_rank=max_rank)
 
     def forward(
             self,
@@ -114,15 +119,19 @@ class ShareLlamaMLP(LlamaMLP):
         self.layer_idx = layer_idx
         dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
         max_rank = getattr(config, "max_basis_rank", None)
+        energy_thresh = getattr(config, "dynamic_energy_threshold", None)
         self.gate_basis = gate_basis
         self.gate_proj = Coefficient(self.intermediate_size, config.num_basis_gate,
-                                     dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                     dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                     max_rank=max_rank)
         self.up_basis = up_basis
         self.up_proj = Coefficient(self.intermediate_size, config.num_basis_up,
-                                   dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                   dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                   max_rank=max_rank)
         self.down_basis = down_basis
         self.down_proj = Coefficient(self.hidden_size, config.num_basis_down,
-                                     dynamic_threshold=dyn_thresh, max_rank=max_rank)
+                                     dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
+                                     max_rank=max_rank)
 
     def forward(self, x):
         if self.config.pretraining_tp > 1:
