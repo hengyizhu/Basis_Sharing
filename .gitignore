@@ -1,3 +1,6 @@
 __pycache__/
 calib/
 untrained_model/
+untrained_model_reordered/
+sparsity_analysis_result/
+channel_permutation.pt

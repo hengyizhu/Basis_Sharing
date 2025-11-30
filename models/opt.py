@@ -20,24 +20,25 @@ class ShareOPTAttention(OPTAttention):
         dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
         max_rank = getattr(config, "max_basis_rank", None)
         energy_thresh = getattr(config, "dynamic_energy_threshold", None)
+        static_k = getattr(config, "static_k", None)
 
         if share_k:
             self.k_proj = Coefficient(self.embed_dim, config.num_basis_k, bias=self.enable_bias,
                                       dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank)
+                                      max_rank=max_rank, static_k=static_k)
         if share_q:
             self.q_proj = Coefficient(self.embed_dim, config.num_basis_q, bias=self.enable_bias,
                                       dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank)
+                                      max_rank=max_rank, static_k=static_k)
         if share_v:
             self.v_proj = Coefficient(self.embed_dim, config.num_basis_v, bias=self.enable_bias,
                                       dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank)
+                                      max_rank=max_rank, static_k=static_k)
 
         if share_o:
             self.out_proj = Coefficient(self.embed_dim, config.num_basis_o, bias=self.enable_bias,
                                         dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                        max_rank=max_rank)
+                                        max_rank=max_rank, static_k=static_k)
 
     def forward(
             self,
@@ -194,18 +195,19 @@ class ShareOPTDecoderLayer(OPTDecoderLayer):
         dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
         max_rank = getattr(config, "max_basis_rank", None)
         energy_thresh = getattr(config, "dynamic_energy_threshold", None)
+        static_k = getattr(config, "static_k", None)
 
         self.self_attn = ShareOPTAttention(config, layer_idx, share_k, share_q, share_v, share_o)
 
         if self.share_up:
             self.fc1 = Coefficient(config.ffn_dim, config.num_basis_up, bias=config.enable_bias,
                                    dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                   max_rank=max_rank)
+                                   max_rank=max_rank, static_k=static_k)
 
         if self.share_down:
             self.fc2 = Coefficient(self.embed_dim, config.num_basis_down, bias=config.enable_bias,
                                    dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                   max_rank=max_rank)
+                                   max_rank=max_rank, static_k=static_k)
 
     @staticmethod
     def _in_group(groups, layer_idx):

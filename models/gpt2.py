@@ -18,15 +18,16 @@ class ShareGPT2SdpaAttention(GPT2SdpaAttention):
         dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
         max_rank = getattr(config, "max_basis_rank", None)
         energy_thresh = getattr(config, "dynamic_energy_threshold", None)
+        static_k = getattr(config, "static_k", None)
 
         if share_attn:
             self.c_attn = Coefficient(3 * self.embed_dim, config.num_basis_attn, bias=True,
                                       dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank)
+                                      max_rank=max_rank, static_k=static_k)
         if share_o:
             self.c_proj = Coefficient(self.embed_dim, config.num_basis_o, bias=True,
                                       dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank)
+                                      max_rank=max_rank, static_k=static_k)
 
     def forward(
             self,
@@ -133,14 +134,15 @@ class ShareGPT2MLP(GPT2MLP):
         dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
         max_rank = getattr(config, "max_basis_rank", None)
         energy_thresh = getattr(config, "dynamic_energy_threshold", None)
+        static_k = getattr(config, "static_k", None)
         if share_up:
             self.c_fc = Coefficient(intermediate_size, config.num_basis_up, bias=True,
                                     dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                    max_rank=max_rank)
+                                    max_rank=max_rank, static_k=static_k)
         if share_down:
             self.c_proj = Coefficient(config.hidden_size, config.num_basis_down, bias=True,
                                       dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank)
+                                      max_rank=max_rank, static_k=static_k)
 
     def forward(self, hidden_states: Optional[Tuple[torch.FloatTensor]], **kwargs) -> torch.FloatTensor:
         if self.share_up:

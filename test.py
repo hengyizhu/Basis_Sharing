@@ -63,4 +63,12 @@ if __name__ == '__main__':
                                                                            config.context_length,
                                                                            config.dataset_cache_dir)
     model = create_model(config)
+    # apply static_k to all Coefficient layers if provided
+    if getattr(config, "static_k", None) is not None:
+        for module in model.modules():
+            if isinstance(module, Coefficient):
+                module.static_k = config.static_k
+                # disable dynamic to force static slice
+                module.dynamic_energy_threshold = None
+                module.dynamic_threshold = None
     print(compute_ppl(config.context_length, config.stride, test_dataset, model, "cuda"))

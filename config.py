@@ -48,6 +48,12 @@ def add_args():
         type=float,
         default=None,
     )
+    paser.add_argument(
+        "--static_k",
+        help="use static slice of first k basis vectors in Coefficient (bypasses dynamic)",
+        type=int,
+        default=None,
+    )
     args, unknown = paser.parse_known_args()
     return args
 
