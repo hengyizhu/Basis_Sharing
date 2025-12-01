@@ -31,28 +31,16 @@ def add_args():
         default=None,
     )
     paser.add_argument(
-        "--dynamic_rank_threshold",
-        help="threshold for dynamic basis activation; None disables",
+        "--target_ratio",
+        help="target basis retention ratio (e.g., 0.5 retains 50% basis channels)",
         type=float,
-        default=None,
+        default=1.0,
     )
     paser.add_argument(
-        "--max_basis_rank",
-        help="optional cap on number of basis vectors to keep active at runtime",
-        type=int,
-        default=None,
-    )
-    paser.add_argument(
-        "--dynamic_energy_threshold",
-        help="retain basis energy fraction (e.g., 0.95); enables cumulative energy pruning",
-        type=float,
-        default=None,
-    )
-    paser.add_argument(
-        "--static_k",
-        help="use static slice of first k basis vectors in Coefficient (bypasses dynamic)",
-        type=int,
-        default=None,
+        "--strategy",
+        help="inference strategy: baseline|global_static|prompt_adaptive",
+        type=str,
+        default="baseline",
     )
     args, unknown = paser.parse_known_args()
     return args

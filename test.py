@@ -62,13 +62,11 @@ if __name__ == '__main__':
     train_dataset, val_dataset, test_dataset, data_collator = prepare_data(config.dataset_name, tokenizer,
                                                                            config.context_length,
                                                                            config.dataset_cache_dir)
+    # set strategy/target ratio already in config
     model = create_model(config)
-    # apply static_k to all Coefficient layers if provided
-    if getattr(config, "static_k", None) is not None:
-        for module in model.modules():
-            if isinstance(module, Coefficient):
-                module.static_k = config.static_k
-                # disable dynamic to force static slice
-                module.dynamic_energy_threshold = None
-                module.dynamic_threshold = None
+    # runtime override of strategy if needed
+    for module in model.modules():
+        if isinstance(module, Coefficient):
+            module.strategy = getattr(config, "strategy", "baseline")
+            module.target_ratio = getattr(config, "target_ratio", 1.0)
     print(compute_ppl(config.context_length, config.stride, test_dataset, model, "cuda"))

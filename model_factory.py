@@ -19,14 +19,10 @@ from models.mistral import ShareMistralForCausalLM
 
 
 def _inject_dynamic_config(model_config, runtime_config):
-    if hasattr(runtime_config, "dynamic_rank_threshold"):
-        setattr(model_config, "dynamic_rank_threshold", getattr(runtime_config, "dynamic_rank_threshold", None))
-    if hasattr(runtime_config, "max_basis_rank"):
-        setattr(model_config, "max_basis_rank", getattr(runtime_config, "max_basis_rank", None))
-    if hasattr(runtime_config, "dynamic_energy_threshold"):
-        setattr(model_config, "dynamic_energy_threshold", getattr(runtime_config, "dynamic_energy_threshold", None))
-    if hasattr(runtime_config, "static_k"):
-        setattr(model_config, "static_k", getattr(runtime_config, "static_k", None))
+    if hasattr(runtime_config, "target_ratio"):
+        setattr(model_config, "target_ratio", getattr(runtime_config, "target_ratio", 1.0))
+    if hasattr(runtime_config, "strategy"):
+        setattr(model_config, "strategy", getattr(runtime_config, "strategy", "baseline"))
 
 
 def do_update_model(config, model, dataset, tokenizer, data_collator):

@@ -15,19 +15,15 @@ class ShareGPT2SdpaAttention(GPT2SdpaAttention):
         super().__init__(config, is_cross_attention, layer_idx)
         self.share_attn = share_attn
         self.share_o = share_o
-        dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
-        max_rank = getattr(config, "max_basis_rank", None)
-        energy_thresh = getattr(config, "dynamic_energy_threshold", None)
-        static_k = getattr(config, "static_k", None)
+        strategy = getattr(config, "strategy", "baseline").lower()
+        target_ratio = getattr(config, "target_ratio", 1.0)
 
         if share_attn:
             self.c_attn = Coefficient(3 * self.embed_dim, config.num_basis_attn, bias=True,
-                                      dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank, static_k=static_k)
+                                      strategy=strategy, target_ratio=target_ratio)
         if share_o:
             self.c_proj = Coefficient(self.embed_dim, config.num_basis_o, bias=True,
-                                      dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank, static_k=static_k)
+                                      strategy=strategy, target_ratio=target_ratio)
 
     def forward(
             self,
@@ -131,18 +127,14 @@ class ShareGPT2MLP(GPT2MLP):
         self.layer_idx = layer_idx
         self.share_up = share_up
         self.share_down = share_down
-        dyn_thresh = getattr(config, "dynamic_rank_threshold", None)
-        max_rank = getattr(config, "max_basis_rank", None)
-        energy_thresh = getattr(config, "dynamic_energy_threshold", None)
-        static_k = getattr(config, "static_k", None)
+        strategy = getattr(config, "strategy", "baseline").lower()
+        target_ratio = getattr(config, "target_ratio", 1.0)
         if share_up:
             self.c_fc = Coefficient(intermediate_size, config.num_basis_up, bias=True,
-                                    dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                    max_rank=max_rank, static_k=static_k)
+                                    strategy=strategy, target_ratio=target_ratio)
         if share_down:
             self.c_proj = Coefficient(config.hidden_size, config.num_basis_down, bias=True,
-                                      dynamic_threshold=dyn_thresh, dynamic_energy_threshold=energy_thresh,
-                                      max_rank=max_rank, static_k=static_k)
+                                      strategy=strategy, target_ratio=target_ratio)
 
     def forward(self, hidden_states: Optional[Tuple[torch.FloatTensor]], **kwargs) -> torch.FloatTensor:
         if self.share_up:
