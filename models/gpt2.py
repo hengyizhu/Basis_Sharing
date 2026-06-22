@@ -5,7 +5,7 @@ import torch
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 from transformers.models.gpt2.modeling_gpt2 import GPT2LMHeadModel, GPT2SdpaAttention, GPT2MLP, GPT2Block, GPT2Model
 from transformers.utils import logging
-from model_utils import build_basis_collection, Basis, Coefficient
+from models.model_utils import build_basis_collection, Basis, Coefficient
 
 logger = logging.get_logger(__name__)
 

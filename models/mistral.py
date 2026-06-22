@@ -3,7 +3,7 @@ from transformers.models.mistral.modeling_mistral import MistralMLP, MistralSdpa
     MistralModel, MistralForCausalLM, apply_rotary_pos_emb, repeat_kv
 from transformers.cache_utils import Cache, DynamicCache, StaticCache
 from transformers.modeling_outputs import BaseModelOutputWithPast
-from model_utils import build_basis_collection, Coefficient
+from models.model_utils import build_basis_collection, Coefficient
 from transformers.utils import logging
 
 logger = logging.get_logger(__name__)

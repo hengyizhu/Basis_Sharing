@@ -4,7 +4,7 @@ from transformers.models.opt.modeling_opt import OPTAttention, OPTDecoderLayer, 
 from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 from transformers.utils import logging
-from model_utils import build_basis_collection, Coefficient
+from models.model_utils import build_basis_collection, Coefficient
 
 logger = logging.get_logger(__name__)
 
